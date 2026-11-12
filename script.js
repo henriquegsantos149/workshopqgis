@@ -16,76 +16,22 @@ document.addEventListener('DOMContentLoaded', () => {
   initPhoneValidation();
   initEnrollmentModal();
 
-  // Track ViewContent on load (browser pixel + CAPI server-side deduplicated)
+  // Track ViewContent with the Meta Pixel
   trackMeta('ViewContent', {
-    customData: {
-      content_name: 'Workshop WebGIS',
-      content_category: 'workshop'
-    }
+    content_name: 'Workshop WebGIS',
+    content_category: 'workshop'
   });
 });
 
-// Meta Pixel & Conversions API Tracking Helper
-const STANDARD_META_EVENTS = ['Lead', 'ViewContent', 'PageView', 'InitiateCheckout', 'Purchase'];
+// Meta Pixel events
+function trackMeta(eventName, customData) {
+  if (typeof window.fbq !== 'function') return;
 
-function readCookie(name) {
-  if (typeof document === 'undefined') return undefined;
-  for (const part of document.cookie.split(';')) {
-    const separator = part.indexOf('=');
-    if (separator < 1) continue;
-    if (part.slice(0, separator).trim() !== name) continue;
-    return part.slice(separator + 1).trim();
-  }
-  return undefined;
-}
-
-function deriveFbc() {
-  const existing = readCookie('_fbc');
-  if (existing) return existing;
-  if (typeof window === 'undefined') return undefined;
-  const fbclid = new URLSearchParams(window.location.search).get('fbclid');
-  if (!fbclid) return undefined;
-  return `fb.1.${Date.now()}.${fbclid}`;
-}
-
-function trackMeta(eventName, options = {}) {
-  if (typeof window === 'undefined') return;
-
+  const method = eventName === 'lead_qualificado' ? 'trackCustom' : 'track';
   try {
-    const eventId = window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const method = STANDARD_META_EVENTS.includes(eventName) ? 'track' : 'trackCustom';
-
-    // 1. Browser Pixel with eventID for deduplication
-    try {
-      if (typeof window.fbq === 'function') {
-        window.fbq(method, eventName, options.customData || {}, { eventID: eventId });
-      }
-    } catch (pixelError) {
-      console.warn('Pixel tracking notice (non-fatal):', pixelError);
-    }
-
-    // 2. Meta Conversions API (Serverless endpoint)
-    const cookieString = typeof document === 'undefined' ? '' : document.cookie;
-    const payload = {
-      event_name: eventName,
-      event_id: eventId,
-      event_source_url: window.location.href,
-      fbp: readCookie('_fbp'),
-      fbc: deriveFbc(),
-      custom_data: options.customData,
-      ...options.userData
-    };
-
-    fetch('/api/meta-capi', {
-      method: 'POST',
-      keepalive: true,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    }).catch(() => {
-      // Non-blocking silent catch: client already fired pixel
-    });
-  } catch (err) {
-    // Tracking errors must never interfere with user experience
+    window.fbq(method, eventName, customData);
+  } catch (error) {
+    console.warn('Pixel tracking notice (non-fatal):', error);
   }
 }
 
@@ -261,7 +207,7 @@ function initScrollReveal() {
   });
 }
 
-// Enrollment form simulation
+// Enrollment form and checkout redirect
 function initEnrollmentForm() {
   const forms = document.querySelectorAll('#enrollment-form, #hero-enrollment-form');
   if (forms.length === 0) return;
@@ -276,88 +222,33 @@ function initEnrollmentForm() {
       const submitBtn = form.querySelector('button[type="submit"]');
       if (!submitBtn) return;
 
-      // Loading state
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Processando inscrição...';
+      submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Redirecionando...';
       if (typeof lucide !== 'undefined') lucide.createIcons();
 
-      // Capture form data
-      const formData = new FormData(form);
-      const rawWhatsapp = formData.get('whatsapp') || '';
-      const cleanWhatsapp = rawWhatsapp.replace(/\D/g, ''); // Envia limpo para o ActiveCampaign e Meta
-      
-      const formPayload = {
-        name: formData.get('name'),
-        email: formData.get('email'),
-        whatsapp: cleanWhatsapp,
-        education: formData.get('education'),
-        education_area: formData.get('education_area') || ''
-      };
-
-      // Capture all UTM parameters from the current URL
+      const education = new FormData(form).get('education');
       const urlParams = new URLSearchParams(window.location.search);
       const finalCheckoutUrl = new URL(targetCheckout);
-      
+
       urlParams.forEach((value, key) => {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.startsWith('utm_')) {
+        if (key.toLowerCase().startsWith('utm_')) {
           finalCheckoutUrl.searchParams.append(key, value);
-          formPayload[lowerKey] = value;
         }
       });
-
-      // Send to Meta CAPI & Pixel (deduplicated)
-      const metaUserData = {
-        nome: formPayload.name,
-        email: formPayload.email,
-        telefone: formPayload.whatsapp
-      };
 
       const metaCustomData = {
         content_name: 'Workshop WebGIS',
         content_category: 'workshop'
       };
 
-      // Disparar Lead para todos os cadastros
-      trackMeta('Lead', {
-        userData: metaUserData,
-        customData: metaCustomData
-      });
+      trackMeta('Lead', metaCustomData);
 
-      // Disparar lead_qualificado caso o usuário tenha graduação
-      if (formPayload.education && formPayload.education.toLowerCase() === 'sim') {
-        if (typeof window !== 'undefined' && window.dataLayer) {
-          window.dataLayer.push({ event: 'lead_qualificado' });
-        }
-        trackMeta('lead_qualificado', {
-          userData: metaUserData,
-          customData: metaCustomData
-        });
+      if (education?.toLowerCase() === 'sim') {
+        window.dataLayer?.push({ event: 'lead_qualificado' });
+        trackMeta('lead_qualificado', metaCustomData);
       }
 
-      // Send to our secure Vercel API
-      fetch('/api/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formPayload)
-      })
-      .then(response => {
-        if (!response.ok) {
-          console.error('Failed to subscribe lead to ActiveCampaign');
-        }
-      })
-      .catch(error => {
-        console.error('Error calling subscribe API:', error);
-      })
-      .finally(() => {
-        // Redireciona para o checkout independentemente do sucesso da API,
-        // para não travar a venda em caso de falha de conexão.
-        submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Redirecionando...';
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-        window.location.href = finalCheckoutUrl.toString();
-      });
+      window.location.href = finalCheckoutUrl.toString();
     });
   });
 }

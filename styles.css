@@ -489,6 +489,29 @@ a {
   }
 }
 
+.hero-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin-bottom: 16px;
+  color: var(--color-text-light);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.hero-schedule > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-schedule svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--color-accent);
+}
+
 .hero-title {
   font-size: 2.25rem;
   font-weight: 800;
