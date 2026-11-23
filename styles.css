@@ -1745,8 +1745,18 @@ a {
 }
 
 .bg-light-layer .benefit-card-detailed .benefit-icon-wrapper {
-  background-color: rgba(0, 74, 173, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  background-color: transparent;
   color: var(--color-primary);
+}
+
+.benefit-icon-wrapper svg {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
 }
 
 /* FAQ Light Section Overrides */
@@ -2048,11 +2058,58 @@ a {
 /* Pricing Section & Premium Pricing Card */
 .pricing-section {
   position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  padding-top: 100px;
+  padding-bottom: 100px;
 }
 
 .pricing-wrapper {
   margin: 40px auto 0;
   max-width: 540px;
+}
+
+.pricing-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+}
+
+.pricing-layout .section-header {
+  margin-bottom: 0;
+  text-align: left;
+}
+
+.pricing-layout .section-desc {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+.pricing-layout .pricing-wrapper {
+  width: 100%;
+  max-width: 540px;
+  margin: 0 auto;
+}
+
+.pricing-layout .pricing-features {
+  margin-bottom: 0;
+}
+
+.pricing-layout .feature-item svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+@media (min-width: 992px) {
+  .pricing-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 540px);
+    gap: 64px;
+  }
 }
 
 .pricing-card-premium {
