@@ -429,9 +429,6 @@ function initEnrollmentModal() {
 function initTestimonialsCarousel() {
   const container = document.getElementById('testimonials-carousel');
   const track = document.getElementById('testimonials-track');
-  const prevBtn = document.getElementById('carousel-prev-btn');
-  const nextBtn = document.getElementById('carousel-next-btn');
-  const dotsContainer = document.getElementById('carousel-dots');
 
   if (!container || !track) return;
 
@@ -471,7 +468,9 @@ function initTestimonialsCarousel() {
   });
 
   let currentIndex = totalOriginal; // Começa no primeiro card original
-  let isTransitioning = false;
+  let position = 0;
+  let previousFrame = null;
+  let activeIndex = -1;
 
   const getCardOffset = (index) => {
     const card = allCards[index];
@@ -497,26 +496,11 @@ function initTestimonialsCarousel() {
     });
   };
 
-  const updateDots = () => {
-    if (!dotsContainer) return;
-    const activeOriginalIndex = ((currentIndex - totalOriginal) % totalOriginal + totalOriginal) % totalOriginal;
-    const dots = dotsContainer.querySelectorAll('.dot');
-    dots.forEach((dot, i) => {
-      dot.classList.toggle('active', i === activeOriginalIndex);
-    });
-  };
-
-  const applyPosition = (index, animated = true) => {
-    const offset = getCardOffset(index);
-    if (animated) {
-      isTransitioning = true;
-      track.style.transition = 'transform 0.7s cubic-bezier(0.25, 1, 0.5, 1)';
-    } else {
-      track.style.transition = 'none';
-    }
-    track.style.transform = `translate3d(${offset}px, 0, 0)`;
-    updateActiveCards(index);
-    updateDots();
+  const applyPosition = (index) => {
+    currentIndex = totalOriginal + ((index - totalOriginal) % totalOriginal + totalOriginal) % totalOriginal;
+    position = getCardOffset(currentIndex);
+    track.style.transform = `translate3d(${position}px, 0, 0)`;
+    updateActiveCards(currentIndex);
   };
 
   // Posicionamento inicial sem animação com resize otimizado (debounce)
@@ -530,62 +514,9 @@ function initTestimonialsCarousel() {
     resizeTimeout = setTimeout(initPosition, 100);
   }, { passive: true });
 
-  // Render dots
-  if (dotsContainer) {
-    dotsContainer.style.display = 'flex';
-    dotsContainer.innerHTML = '';
-    originalCards.forEach((_, idx) => {
-      const dot = document.createElement('button');
-      dot.className = `dot ${idx === 0 ? 'active' : ''}`;
-      dot.setAttribute('aria-label', `Ir para depoimento ${idx + 1}`);
-      dot.addEventListener('click', () => {
-        if (isTransitioning) return;
-        currentIndex = totalOriginal + idx;
-        applyPosition(currentIndex, true);
-      });
-      dotsContainer.appendChild(dot);
-    });
-  }
+  const nextSlide = () => applyPosition(currentIndex + 1);
+  const prevSlide = () => applyPosition(currentIndex - 1);
 
-  // O pulo do gato do loop infinito 100% invisível sem piscar:
-  track.addEventListener('transitionend', (e) => {
-    if (e.target !== track || e.propertyName !== 'transform') return;
-    isTransitioning = false;
-
-    // Se avançou além do set original
-    if (currentIndex >= totalOriginal * 2) {
-      currentIndex = currentIndex - totalOriginal;
-      // Salto instantâneo: desliga transição do track e reposiciona
-      track.style.transition = 'none';
-      const offset = getCardOffset(currentIndex);
-      track.style.transform = `translate3d(${offset}px, 0, 0)`;
-      // Força reflow para aplicar a remoção de transição sem piscar
-      void track.offsetHeight;
-    } 
-    // Se recuou antes do set original
-    else if (currentIndex < totalOriginal) {
-      currentIndex = currentIndex + totalOriginal;
-      track.style.transition = 'none';
-      const offset = getCardOffset(currentIndex);
-      track.style.transform = `translate3d(${offset}px, 0, 0)`;
-      void track.offsetHeight;
-    }
-  });
-
-  const nextSlide = () => {
-    if (isTransitioning) return;
-    currentIndex++;
-    applyPosition(currentIndex, true);
-  };
-
-  const prevSlide = () => {
-    if (isTransitioning) return;
-    currentIndex--;
-    applyPosition(currentIndex, true);
-  };
-
-  if (nextBtn) nextBtn.addEventListener('click', nextSlide);
-  if (prevBtn) prevBtn.addEventListener('click', prevSlide);
 
   // Suporte a swipe por toque (touch)
   let touchStartX = 0;
@@ -593,7 +524,6 @@ function initTestimonialsCarousel() {
   container.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
     touchDeltaX = 0;
-    clearInterval(timer);
   }, { passive: true });
 
   container.addEventListener('touchmove', (e) => {
@@ -605,18 +535,32 @@ function initTestimonialsCarousel() {
       if (touchDeltaX < 0) nextSlide();
       else prevSlide();
     }
-    clearInterval(timer);
-    timer = setInterval(nextSlide, 5500);
   }, { passive: true });
 
-  // Autoplay sutil e infinito a cada 5.5 segundos
-  let timer = setInterval(nextSlide, 5500);
-  const wrapper = container.closest('.testimonials-carousel-wrapper') || container;
-  
-  wrapper.addEventListener('mouseenter', () => clearInterval(timer));
-  wrapper.addEventListener('mouseleave', () => {
-    clearInterval(timer);
-    timer = setInterval(nextSlide, 5500);
-  });
-}
+  // Move at a constant speed and wrap between identical sets of cards.
+  track.style.transition = 'none';
+  const animate = (timestamp) => {
+    const elapsed = previousFrame === null ? 0 : Math.min(timestamp - previousFrame, 50);
+    previousFrame = timestamp;
+    const start = getCardOffset(totalOriginal);
+    const end = getCardOffset(totalOriginal * 2);
+    const cycleWidth = start - end;
 
+    if (cycleWidth > 0) {
+      position -= 56 * elapsed / 1000;
+      position = start - ((start - position) % cycleWidth + cycleWidth) % cycleWidth;
+      track.style.transform = `translate3d(${position}px, 0, 0)`;
+
+      const step = cycleWidth / totalOriginal;
+      const nearestIndex = totalOriginal + Math.round((start - position) / step);
+      if (nearestIndex !== activeIndex) {
+        activeIndex = nearestIndex;
+        currentIndex = nearestIndex;
+        updateActiveCards(nearestIndex);
+          }
+    }
+    requestAnimationFrame(animate);
+  };
+  applyPosition(totalOriginal);
+  requestAnimationFrame(animate);
+}
