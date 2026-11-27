@@ -2215,6 +2215,45 @@ a {
   pointer-events: none;
 }
 
+.mobile-enrollment-btn {
+  display: none;
+}
+
+@media (max-width: 991px) {
+  .hero-visual {
+    display: none;
+  }
+
+  .mobile-enrollment-btn {
+    display: inline-flex;
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    z-index: 1100;
+    min-height: 52px;
+    max-width: calc(100% - 32px);
+    padding: 14px 20px;
+    border-radius: 999px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  .site-footer {
+    padding-bottom: calc(96px + env(safe-area-inset-bottom));
+  }
+
+  #enrollment-modal .modal-container {
+    max-height: 90vh;
+    max-height: 90dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border-radius: var(--radius-lg);
+  }
+
+  #enrollment-modal .modal-card {
+    padding: 48px 24px 28px;
+  }
+}
+
 /* Enrollment Modal styles */
 .modal {
   position: fixed;
