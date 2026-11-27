@@ -213,26 +213,40 @@ function initEnrollmentForm() {
   if (forms.length === 0) return;
 
   const DEFAULT_CHECKOUT_URL = "https://pay.voompcreators.com.br/14992/offer/Yj3SrT";
+  const WEBHOOK_URL = 'https://hook.us1.make.com/17spd0ywiuivk3sj7o6n55bg9xn6sjbx';
 
   forms.forEach(form => {
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
       const targetCheckout = form.getAttribute('data-checkout-url') || DEFAULT_CHECKOUT_URL;
       const submitBtn = form.querySelector('button[type="submit"]');
-      if (!submitBtn) return;
+      if (!submitBtn || submitBtn.disabled) return;
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Redirecionando...';
       if (typeof lucide !== 'undefined') lucide.createIcons();
 
-      const education = new FormData(form).get('education');
+      const formData = new FormData(form);
+      const education = formData.get('education');
+      const webhookData = new URLSearchParams({
+        name: String(formData.get('name') || '').trim(),
+        email: String(formData.get('email') || '').trim(),
+        whatsapp: String(formData.get('whatsapp') || '').replace(/\D/g, ''),
+        education: String(education || ''),
+        education_area: education === 'sim' ? String(formData.get('education_area') || '').trim() : '',
+        event_name: 'Workshop QGIS do Zero ao Mapa Profissional + IA',
+        form_id: form.id,
+        page_url: window.location.href,
+        submitted_at: new Date().toISOString()
+      });
       const urlParams = new URLSearchParams(window.location.search);
       const finalCheckoutUrl = new URL(targetCheckout);
 
       urlParams.forEach((value, key) => {
         if (key.toLowerCase().startsWith('utm_')) {
           finalCheckoutUrl.searchParams.append(key, value);
+          webhookData.set(key.toLowerCase(), value);
         }
       });
 
@@ -248,7 +262,23 @@ function initEnrollmentForm() {
         trackMeta('lead_qualificado', metaCustomData);
       }
 
-      window.location.href = finalCheckoutUrl.toString();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      try {
+        // URL-encoded data is a simple cross-origin request, without a preflight.
+        await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: webhookData,
+          keepalive: true,
+          signal: controller.signal
+        });
+      } catch (error) {
+        console.warn('Falha no envio ao webhook do workshop:', error);
+      } finally {
+        clearTimeout(timeout);
+        window.location.href = finalCheckoutUrl.toString();
+      }
     });
   });
 }
