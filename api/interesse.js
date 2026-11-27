@@ -26,8 +26,10 @@ export default async function handler(req, res) {
       } catch { /* Use the explicit UTM fields when the source URL is unavailable. */ }
       const normalizedParams = new URLSearchParams();
       pageParams.forEach((value, key) => {
-        const normalizedKey = key.toLowerCase().replace(/^wkqgispratica_/, '');
-        normalizedParams.set(normalizedKey, value);
+        const normalized = key.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
+        const match = normalized.match(/utm_?(source|medium|campaign|content|term)$/);
+        if (match && value.trim()) normalizedParams.set(`utm_${match[1]}`, value);
       });
       for (const name of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
         const value = typeof req.body[name] === 'string' ? req.body[name].trim() : '';

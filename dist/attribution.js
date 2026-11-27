@@ -23,7 +23,11 @@
   window.getQgisAttribution = () => {
     const params = new URLSearchParams(window.location.search);
     for (const [name, value] of params) {
-      const key = name.toLowerCase().replace(/^wkqgispratica_/, '');
+      // Accept standard UTMs and campaign-specific labels without fixing a prefix.
+      const normalized = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/_+$/, '');
+      const match = normalized.match(/utm_?(source|medium|campaign|content|term)$/);
+      const key = match ? `utm_${match[1]}` : '';
       if (keys.includes(key) && value.trim()) {
         attribution[key] = value.trim().slice(0, 254);
       }
