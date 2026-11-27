@@ -212,7 +212,7 @@ function initEnrollmentForm() {
   const forms = document.querySelectorAll('#enrollment-form, #hero-enrollment-form');
   if (forms.length === 0) return;
 
-  const DEFAULT_CHECKOUT_URL = "https://pay.voompcreators.com.br/14992/offer/Yj3SrT";
+  const DEFAULT_CHECKOUT_URL = "https://pay.voompcreators.com.br/5iKtjhJGX8tL6cik/offer/bpV9DD";
   const WEBHOOK_URL = 'https://hook.us1.make.com/17spd0ywiuivk3sj7o6n55bg9xn6sjbx';
 
   forms.forEach(form => {
