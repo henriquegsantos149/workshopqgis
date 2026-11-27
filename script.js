@@ -212,81 +212,83 @@ function initEnrollmentForm() {
   const forms = document.querySelectorAll('#enrollment-form, #hero-enrollment-form');
   if (forms.length === 0) return;
 
-  const DEFAULT_CHECKOUT_URL = "https://pay.voompcreators.com.br/5iKtjhJGX8tL6cik/offer/bpV9DD";
-  const WEBHOOK_URL = 'https://hook.us1.make.com/17spd0ywiuivk3sj7o6n55bg9xn6sjbx';
+  const DEFAULT_CHECKOUT_URL = 'https://pay.voompcreators.com.br/5iKtjhJGX8tL6cik/offer/bpV9DD';
+  const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  let attribution = {};
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('qgis_utm') || '{}');
+    if (saved && typeof saved === 'object') attribution = saved;
+  } catch { /* A captura continua quando o armazenamento está indisponível. */ }
+  const campaignParams = new URLSearchParams(window.location.search);
+  const normalizedParams = new URLSearchParams();
+  campaignParams.forEach((value, key) => normalizedParams.set(key.toLowerCase(), value));
+  if (utmKeys.some(key => normalizedParams.has(key))) {
+    attribution = Object.fromEntries(utmKeys.map(key => [key, (normalizedParams.get(key) || '').slice(0, 254)]));
+    try {
+      sessionStorage.setItem('qgis_utm', JSON.stringify(attribution));
+    } catch { /* As UTMs da visita atual continuam disponíveis em memória. */ }
+  }
 
   forms.forEach(form => {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const targetCheckout = form.getAttribute('data-checkout-url') || DEFAULT_CHECKOUT_URL;
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
       const submitBtn = form.querySelector('button[type="submit"]');
       if (!submitBtn || submitBtn.disabled) return;
-
+      const buttonLabel = submitBtn.innerHTML;
+      let status = form.querySelector('[role="status"]');
+      if (!status) {
+        status = document.createElement('p');
+        status.setAttribute('role', 'status');
+        form.appendChild(status);
+      }
+      status.textContent = '';
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Redirecionando...';
+      submitBtn.innerHTML = '<i data-lucide="loader" class="animate-spin"></i> Enviando...';
       if (typeof lucide !== 'undefined') lucide.createIcons();
 
       const formData = new FormData(form);
       const education = formData.get('education');
-      const webhookData = new URLSearchParams({
-        name: String(formData.get('name') || '').trim(),
+      const payload = {
+        nome: String(formData.get('name') || '').trim(),
         email: String(formData.get('email') || '').trim(),
-        whatsapp: String(formData.get('whatsapp') || '').replace(/\D/g, ''),
-        education: String(education || ''),
-        education_area: education === 'sim' ? String(formData.get('education_area') || '').trim() : '',
-        event_name: 'Workshop QGIS do Zero ao Mapa Profissional + IA',
-        form_id: form.id,
-        page_url: window.location.href,
-        submitted_at: new Date().toISOString()
-      });
-      const urlParams = new URLSearchParams(window.location.search);
-      const finalCheckoutUrl = new URL(targetCheckout);
-
-      urlParams.forEach((value, key) => {
-        if (key.toLowerCase().startsWith('utm_')) {
-          finalCheckoutUrl.searchParams.append(key, value);
-          webhookData.set(key.toLowerCase(), value);
-        }
-      });
-
-      const fieldPrefix = '[WK][QGISNAPRATICA]';
-      webhookData.set('tags', `${fieldPrefix} Leads Trackeamento`);
-      webhookData.set(`${fieldPrefix} UTM Data de Inscrição`, webhookData.get('submitted_at'));
-      webhookData.set(`${fieldPrefix} UTM Possui Graduação`, education === 'sim' ? 'Sim' : 'Não');
-      webhookData.set(`${fieldPrefix} UTM Área de Formação`, webhookData.get('education_area'));
-      for (const field of ['Term', 'Campaign', 'Source', 'Medium', 'Content']) {
-        webhookData.set(`${fieldPrefix} UTM ${field}`, webhookData.get(`utm_${field.toLowerCase()}`) || '');
-      }
-
-      const metaCustomData = {
-        content_name: 'Workshop WebGIS',
-        content_category: 'workshop'
+        telefone: String(formData.get('whatsapp') || '').replace(/\D/g, ''),
+        graduacao: education,
+        area: education === 'sim' ? String(formData.get('education_area') || '').trim() : '',
+        ...Object.fromEntries(utmKeys.map(key => [key, typeof attribution[key] === 'string' ? attribution[key] : '']))
       };
+      const checkout = new URL(form.getAttribute('data-checkout-url') || DEFAULT_CHECKOUT_URL);
+      utmKeys.forEach(key => {
+        if (payload[key]) checkout.searchParams.set(key, payload[key]);
+      });
 
-      trackMeta('Lead', metaCustomData);
-
-      if (education?.toLowerCase() === 'sim') {
-        window.dataLayer?.push({ event: 'lead_qualificado' });
-        trackMeta('lead_qualificado', metaCustomData);
-      }
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
       try {
-        // URL-encoded data is a simple cross-origin request, without a preflight.
-        await fetch(WEBHOOK_URL, {
+        const response = await fetch('/api/interesse', {
           method: 'POST',
-          mode: 'no-cors',
-          body: webhookData,
-          keepalive: true,
-          signal: controller.signal
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
         });
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || 'Não foi possível concluir o cadastro. Tente novamente.');
+        }
+        const metaCustomData = {
+          content_name: 'Workshop QGIS do Zero ao Mapa Profissional + IA',
+          content_category: 'workshop'
+        };
+        trackMeta('Lead', metaCustomData);
+        if (education === 'sim') {
+          window.dataLayer = window.dataLayer || [];
+          window.dataLayer.push({ event: 'lead_qualificado' });
+          trackMeta('lead_qualificado', metaCustomData);
+        }
+        submitBtn.textContent = 'Redirecionando...';
+        window.location.href = checkout.toString();
       } catch (error) {
-        console.warn('Falha no envio ao webhook do workshop:', error);
-      } finally {
-        clearTimeout(timeout);
-        window.location.href = finalCheckoutUrl.toString();
+        status.textContent = error.message === 'Failed to fetch'
+          ? 'Não foi possível enviar seus dados. Confira sua conexão e tente novamente.'
+          : error.message;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = buttonLabel;
       }
     });
   });
