@@ -214,20 +214,6 @@ function initEnrollmentForm() {
 
   const DEFAULT_CHECKOUT_URL = 'https://pay.voompcreators.com.br/5iKtjhJGX8tL6cik/offer/bpV9DD';
   const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
-  let attribution = {};
-  try {
-    const saved = JSON.parse(sessionStorage.getItem('qgis_utm') || '{}');
-    if (saved && typeof saved === 'object') attribution = saved;
-  } catch { /* A captura continua quando o armazenamento está indisponível. */ }
-  const campaignParams = new URLSearchParams(window.location.search);
-  const normalizedParams = new URLSearchParams();
-  campaignParams.forEach((value, key) => normalizedParams.set(key.toLowerCase(), value));
-  if (utmKeys.some(key => normalizedParams.has(key))) {
-    attribution = Object.fromEntries(utmKeys.map(key => [key, (normalizedParams.get(key) || '').slice(0, 254)]));
-    try {
-      sessionStorage.setItem('qgis_utm', JSON.stringify(attribution));
-    } catch { /* As UTMs da visita atual continuam disponíveis em memória. */ }
-  }
 
   forms.forEach(form => {
     form.addEventListener('submit', async (event) => {
@@ -248,11 +234,13 @@ function initEnrollmentForm() {
 
       const formData = new FormData(form);
       const education = formData.get('education');
+      const attribution = window.getQgisAttribution();
       const payload = {
         nome: String(formData.get('name') || '').trim(),
         email: String(formData.get('email') || '').trim(),
         telefone: String(formData.get('whatsapp') || '').replace(/\D/g, ''),
         graduacao: education,
+        page_url: window.location.href,
         area: education === 'sim' ? String(formData.get('education_area') || '').trim() : '',
         ...Object.fromEntries(utmKeys.map(key => [key, typeof attribution[key] === 'string' ? attribution[key] : '']))
       };

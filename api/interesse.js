@@ -20,8 +20,15 @@ export default async function handler(req, res) {
         data_inscricao: new Date().toISOString(),
         tag: '[WK][QGISNAPRATICA] Leads Trackeamento'
       };
+      let pageParams = new URLSearchParams();
+      try {
+        pageParams = new URL(req.body.page_url || req.headers?.referer).searchParams;
+      } catch { /* Use the explicit UTM fields when the source URL is unavailable. */ }
+      const normalizedParams = new URLSearchParams();
+      pageParams.forEach((value, key) => normalizedParams.set(key.toLowerCase(), value));
       for (const name of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
-        payload[name] = typeof req.body[name] === 'string' ? req.body[name].trim().slice(0, 254) : '';
+        const value = typeof req.body[name] === 'string' ? req.body[name].trim() : '';
+        payload[name] = (value || normalizedParams.get(name) || '').trim().slice(0, 254);
       }
       const response = await fetch(url, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
