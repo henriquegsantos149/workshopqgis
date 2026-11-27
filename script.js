@@ -207,12 +207,12 @@ function initScrollReveal() {
   });
 }
 
-// Enrollment form and checkout redirect
+// Enrollment form and pre-checkout questionnaire redirect
 function initEnrollmentForm() {
   const forms = document.querySelectorAll('#enrollment-form, #hero-enrollment-form');
   if (forms.length === 0) return;
 
-  const DEFAULT_CHECKOUT_URL = 'https://pay.voompcreators.com.br/5iKtjhJGX8tL6cik/offer/bpV9DD';
+  const QUESTIONNAIRE_URL = 'https://tally.so/r/OQGjoA';
   const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
 
   forms.forEach(form => {
@@ -244,9 +244,9 @@ function initEnrollmentForm() {
         area: education === 'sim' ? String(formData.get('education_area') || '').trim() : '',
         ...Object.fromEntries(utmKeys.map(key => [key, typeof attribution[key] === 'string' ? attribution[key] : '']))
       };
-      const checkout = new URL(form.getAttribute('data-checkout-url') || DEFAULT_CHECKOUT_URL);
+      const questionnaire = new URL(QUESTIONNAIRE_URL);
       utmKeys.forEach(key => {
-        if (payload[key]) checkout.searchParams.set(key, payload[key]);
+        if (payload[key]) questionnaire.searchParams.set(key, payload[key]);
       });
 
       try {
@@ -270,7 +270,7 @@ function initEnrollmentForm() {
           trackMeta('lead_qualificado', metaCustomData);
         }
         submitBtn.textContent = 'Redirecionando...';
-        window.location.href = checkout.toString();
+        window.location.href = questionnaire.toString();
       } catch (error) {
         status.textContent = error.message === 'Failed to fetch'
           ? 'Não foi possível enviar seus dados. Confira sua conexão e tente novamente.'
