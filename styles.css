@@ -1104,52 +1104,19 @@ a {
 
 .certificate-mockup-wrapper {
   position: relative;
-  border-radius: var(--radius-md);
-  padding: 6px;
-  background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
-  box-shadow: var(--shadow-lg);
-  max-width: 480px;
+  padding: 4% 3%;
+  perspective: 1050px;
+  max-width: 540px;
   width: 100%;
   cursor: pointer;
-  transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-  overflow: hidden;
-  z-index: 2;
 }
 
 .certificate-img {
   width: 100%;
+  height: auto;
   display: block;
-  border-radius: calc(var(--radius-md) - 4px);
-  aspect-ratio: 1.414 / 1;
-  object-fit: cover;
-  transition: transform var(--transition-normal);
-}
-
-.certificate-mockup-wrapper:hover {
-  transform: translateY(-10px) rotate(1deg);
-  box-shadow: var(--shadow-glow), var(--shadow-lg);
-}
-
-.certificate-mockup-wrapper:hover .certificate-img {
-  transform: scale(1.04);
-}
-
-.certificate-shadow {
-  position: absolute;
-  bottom: -30px;
-  left: 10%;
-  right: 10%;
-  height: 30px;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.6) 0%, transparent 80%);
-  filter: blur(8px);
-  pointer-events: none;
-  z-index: 1;
-  transition: transform var(--transition-normal), opacity var(--transition-normal);
-}
-
-.certificate-mockup-wrapper:hover ~ .certificate-shadow {
-  transform: scale(0.9);
-  opacity: 0.7;
+  transform: rotateY(12deg) rotateX(5deg) rotateZ(-3deg);
+  box-shadow: 1px 2px 0 #deded5, 2px 4px 0 #c1c4ba, 10px 20px 35px #132e2b65;
 }
 
 /* Instructor Section */
