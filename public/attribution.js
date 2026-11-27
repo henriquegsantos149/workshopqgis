@@ -23,7 +23,7 @@
   window.getQgisAttribution = () => {
     const params = new URLSearchParams(window.location.search);
     for (const [name, value] of params) {
-      const key = name.toLowerCase();
+      const key = name.toLowerCase().replace(/^wkqgispratica_/, '');
       if (keys.includes(key) && value.trim()) {
         attribution[key] = value.trim().slice(0, 254);
       }

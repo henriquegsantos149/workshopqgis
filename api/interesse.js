@@ -25,7 +25,10 @@ export default async function handler(req, res) {
         pageParams = new URL(req.body.page_url || req.headers?.referer).searchParams;
       } catch { /* Use the explicit UTM fields when the source URL is unavailable. */ }
       const normalizedParams = new URLSearchParams();
-      pageParams.forEach((value, key) => normalizedParams.set(key.toLowerCase(), value));
+      pageParams.forEach((value, key) => {
+        const normalizedKey = key.toLowerCase().replace(/^wkqgispratica_/, '');
+        normalizedParams.set(normalizedKey, value);
+      });
       for (const name of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term']) {
         const value = typeof req.body[name] === 'string' ? req.body[name].trim() : '';
         payload[name] = (value || normalizedParams.get(name) || '').trim().slice(0, 254);
