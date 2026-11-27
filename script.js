@@ -250,6 +250,15 @@ function initEnrollmentForm() {
         }
       });
 
+      const fieldPrefix = '[WK][QGISNAPRATICA]';
+      webhookData.set('tags', `${fieldPrefix} Leads Trackeamento`);
+      webhookData.set(`${fieldPrefix} UTM Data de Inscrição`, webhookData.get('submitted_at'));
+      webhookData.set(`${fieldPrefix} UTM Possui Graduação`, education === 'sim' ? 'Sim' : 'Não');
+      webhookData.set(`${fieldPrefix} UTM Área de Formação`, webhookData.get('education_area'));
+      for (const field of ['Term', 'Campaign', 'Source', 'Medium', 'Content']) {
+        webhookData.set(`${fieldPrefix} UTM ${field}`, webhookData.get(`utm_${field.toLowerCase()}`) || '');
+      }
+
       const metaCustomData = {
         content_name: 'Workshop WebGIS',
         content_category: 'workshop'
